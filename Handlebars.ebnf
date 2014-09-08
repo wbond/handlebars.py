@@ -1,0 +1,57 @@
+
+CONTENT = { /[^{\\]+/ | ESCAPE | NON_OPEN }+ ;
+ESCAPE = '\' @:/./ ;
+NON_OPEN = '{' !'{' ;
+
+
+WS_CONTROL = [ '~' ] ;
+WS = /[ \n]*/ ;
+
+
+DATA = '@' ;
+PATH_THIS = './' ;
+PATH_PARENT = '../' ;
+SEPARATOR = '.' | '/' ;
+IDENTIFIER = ?/[^ \t\n!"#%&'()*+,./;<=>@[\\\]^`{|}~]+/? ;
+QUOTED_IDENTIFIER = ?/\[[^\]]+\]/? ;
+REF = ( data:[DATA] traversal:{ PATH_PARENT | PATH_THIS | (IDENTIFIER | QUOTED_IDENTIFIER) SEPARATOR } name:(IDENTIFIER | QUOTED_IDENTIFIER) ) ;
+
+BASIC_ARG = (STRING_LITERAL | REF | name:IDENTIFIER '=' value:(STRING_LITERAL | REF )) ;
+STRING_LITERAL = /"([^\"]+|\\")*"/ ;
+SUBEXPRESSION = '(' IDENTIFIER ARGS ')' ;
+
+ARG = BASIC_ARG | SUBEXPRESSION;
+ARGS = { /[ \n]+/ @:ARG } ;
+
+
+COMMENT_LONG_OPEN = '{{!--' ;
+COMMENT_LONG_CONTENT = { /[^-]+/ | /-/ !'-}}' }* ;
+COMMENT_LONG_CLOSE = '--}}' ;
+COMMENT_LONG_TAG = ( COMMENT_LONG_OPEN content:COMMENT_LONG_CONTENT COMMENT_LONG_CLOSE ) ;
+
+
+COMMENT_OPEN = '{{!' ;
+COMMENT_CONTENT = { /[^}]+/ | '}' !'}' }* ;
+COMMENT_TAG = ( COMMENT_OPEN content:COMMENT_CONTENT TAG_CLOSE ) ;
+
+
+BLOCK_OPEN = ( '{{' tb:WS_CONTROL '#' ref:REF args:ARGS WS tf:WS_CONTROL TAG_CLOSE ) ;
+BLOCK_INVERTED_OPEN = ( '{{' tb:WS_CONTROL '^' ref:REF args:ARGS WS tf:WS_CONTROL TAG_CLOSE ) ;
+BLOCK_ELSE = ( '{{' tb:WS_CONTROL '^' tf:WS_CONTROL '}}' | '{{' tb:WS_CONTROL 'else' tf:WS_CONTROL '}}' ) ;
+BLOCK_CLOSE = ( '{{' tb:WS_CONTROL '/' ref:REF WS tf:WS_CONTROL TAG_CLOSE ) ;
+
+
+RAW_TAG_OPEN = '{{{' ;
+RAW_TAG_CLOSE = '}}}' ;
+RAW_TAG = ( RAW_TAG_OPEN tb:WS_CONTROL ref:REF args:ARGS WS tf:WS_CONTROL RAW_TAG_CLOSE ) ;
+
+
+PARTIAL_TAG = ( '{{' tb:WS_CONTROL '>' WS ref:REF args:ARGS WS tf:WS_CONTROL TAG_CLOSE ) ;
+
+
+TAG_OPEN = '{{' ;
+TAG_CLOSE = '}}' ;
+TAG = ( TAG_OPEN tb:WS_CONTROL ref:REF args:ARGS WS tf:WS_CONTROL TAG_CLOSE ) ;
+
+
+MAIN = { CONTENT | RAW_TAG | PARTIAL_TAG | COMMENT_LONG_TAG | COMMENT_TAG | BLOCK_OPEN | BLOCK_CLOSE | TAG } ;
